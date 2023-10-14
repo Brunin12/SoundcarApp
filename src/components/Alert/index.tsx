@@ -1,6 +1,6 @@
 import React, { ReactNode } from 'react';
 import { View, StyleSheet } from 'react-native';
-
+import { Text } from 'react-native-paper';
 interface AlertProps {
     children: ReactNode;
 }
@@ -8,7 +8,7 @@ interface AlertProps {
 function Alert({children}: AlertProps) {
     return (
         <View style={styles.alert}>
-            {children}
+            <Text>{children}</Text>
         </View>
     );
 }
@@ -17,7 +17,9 @@ export default Alert;
 
 const styles = StyleSheet.create({
     alert: {
-        backgroundColor: "#6A0DAD",
+        backgroundColor: "#FFF",
+        color: "#000",
+        marginTop: 50,
         borderRadius: 10,
         padding: 10,
         alignItems: "center",

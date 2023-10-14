@@ -1,7 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
-import Home from './src/screens/Home';
 import { DefaultTheme, Provider as PaperProvider } from 'react-native-paper';
+import Routes from './src/routes';
 
 export default function App() {
   const theme = {
@@ -15,7 +15,7 @@ export default function App() {
 
   return (
     <PaperProvider theme={theme}>
-      <Home />
+      <Routes />
       <StatusBar style="auto" />
     </PaperProvider>
   );
