@@ -6,6 +6,7 @@ import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { CommonActions } from "@react-navigation/native";
 import Register from "../screens/Register";
 import Home from "../screens/Home";
+import Edit from "../screens/Edit";
 
 const Tab = createBottomTabNavigator();
 
@@ -15,20 +16,31 @@ export default function TabRoutes() {
       name: "Home",
       component: Home,
       options: {
-        tabBarLabel: "Home",
+        tabBarLabel: "Início",
         tabBarIcon: ({ color, size }) => {
           return <Icon name="home" size={size} color={color} />;
         },
       },
     },
     {
-      name: "Registrar",
+      name: "Register",
       component: Register,
       
       options: {
         tabBarLabel: "Registrar",
         tabBarIcon: ({ color, size }) => {
           return <Icon name="account-arrow-up" size={size} color={color} />;
+        },
+      },
+    },
+    {
+      name: "Edit",
+      component: Edit,
+      
+      options: {
+        tabBarLabel: "Editar",
+        tabBarIcon: ({ color, size }) => {
+          return <Icon name="pencil" size={size} color={color} />;
         },
       },
     },

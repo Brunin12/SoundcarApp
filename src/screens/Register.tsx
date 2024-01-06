@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import { View, StyleSheet, FlatList } from "react-native";
 import {
   ActivityIndicator,
@@ -15,16 +15,21 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import CardResult from "../components/CardResult";
 import Alert from "../components/Alert";
 
-const Register = ({title}) => {
+const Register = ({navigation}) => {
+  const [title, setTitle] = useState("client");
   const [showForm, setShowForm] = useState(false);
   const [noResult, setNoResult] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resultSearch, setResultSearch] = useState([]);
   const [search, setSearch] = useState("");
 
+  const handleEditItem = (itemId, title) => {
+    navigation.navigate('Edit', { itemId, title });
+  };
+
   const renderItem = ({ item }) => {
     return (
-      <CardResult title={title === "client" ? "Usuário" : "Aparelho"}>
+      <CardResult title={title === "client" ? "Usuário" : "Aparelho"} buttonTitle="Editar" onPress={() => handleEditItem(item.id, title)}>
         <Text>
           Nome:
           {item.name}
@@ -44,16 +49,23 @@ const Register = ({title}) => {
       const data = await AsyncStorage.getItem(title);
 
       if (data) {
-        // Transforma o JSON em um objeto JavaScript
         const parsedObject = JSON.parse(data);
-        const valuesArray = Object.values(parsedObject); // Converte o objeto em uma array
+        const valuesArray = Object.values(parsedObject);
 
-        const sortedResults = valuesArray.find(
-          (data) =>
-            data && (data["name"] === query || data["telephone"] === query)
-        );
+        let sortedResults = [];
 
-        return [sortedResults];
+        if (query === "") {
+          sortedResults = valuesArray;
+        } else {
+          const regex = new RegExp(query, "i");
+          sortedResults = valuesArray.filter(
+            (data) =>
+              data &&
+              (regex.test(data["name"]) || regex.test(data["telephone"]))
+          );
+        }
+
+        return sortedResults;
       } else {
         return [];
       }
@@ -64,56 +76,72 @@ const Register = ({title}) => {
   };
 
   const handleAddClick = () => {
-    setShowForm(true);
+    setShowForm(!showForm);
+  };
+
+  const handleChangeSelect = (value) => {
+    setTitle(value);
+    setSearch("");
+  };
+
+  const generateId = () => {
+    return Math.random().toString(36).substr(2, 9);
   };
 
   const handleSubmitItem = async (data) => {
     setLoading(true);
     try {
-      // Obter os dados existentes (se houver)
       const existingData = await AsyncStorage.getItem(title);
-
-      // Se não houver dados existentes, inicializamos uma nova array vazia
       let clientData = existingData ? JSON.parse(existingData) : [];
 
-      // Encontrar o maior ID existente
-      let maxId = 0;
-      clientData.forEach((item) => {
-        if (item.id > maxId) {
-          maxId = item.id;
-        }
-      })
+      const newData = { ...data, id: generateId() };
+      clientData = [...clientData, newData];
 
-      // Calcular o próximo ID
-      const nextId = maxId + 1;
-
-      // Adicionar o novo usuário à array com o próximo ID
-      data.id = nextId;
-      clientData[nextId] = data;
-
-      // Gravar os dados atualizados no AsyncStorage
       await AsyncStorage.setItem(title, JSON.stringify(clientData));
     } catch (error) {
-      console.error("Erro ao salvar dados:", error);
+      alert(`Erro ao salvar dados: ${error}`);
     }
     setLoading(false);
   };
 
-  const handleSearch = useCallback(async (data) => {
-    setSearch(data);
-    setShowForm(false);
-    setLoading(true);
+  const handleSearch = useCallback(
+    async (data) => {
+      setSearch(data);
+      setShowForm(false);
+      setLoading(true);
 
-    const result = await searchData(data);
-    if (result) {
-      setNoResult(false);
-      setResultSearch(result);
-    } else {
-      setNoResult(true);
-    }
+      const result = await searchData(data);
+      if (result) {
+        setNoResult(false);
+        setResultSearch(result);
+      } else {
+        setNoResult(true);
+      }
 
-    setLoading(false);
-  }, [search]);
+      setLoading(false);
+    },
+    [search]
+  );
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setSearch('');
+        setLoading(true);
+        
+        const data = await AsyncStorage.getItem(title);
+        const parsedData = data ? JSON.parse(data) : [];
+        setResultSearch(parsedData);
+        setLoading(false);
+      } catch (error) {
+        console.error("Erro ao buscar dados:", error);
+        setLoading(false);
+      }
+    };
+  
+    fetchData();
+  }, [title]);
+  
 
   return (
     <>
@@ -121,7 +149,7 @@ const Register = ({title}) => {
         <View style={styles.header}>
           <SegmentedButtons
             value={title}
-            onValueChange={() => {title = "client"}}
+            onValueChange={handleChangeSelect}
             buttons={[
               {
                 value: "client",
@@ -138,26 +166,23 @@ const Register = ({title}) => {
             onSubmitEditing={handleSearch}
             placeholder="Pesquisar..."
             value={search}
-            style={{ flex: 1 }}
+            style={styles.searchBar}
           />
           <FAB icon="plus" style={styles.fab} onPress={handleAddClick} />
         </View>
         {showForm && (
           <View style={styles.Forms}>
-            {/* Renderizar o formulário correspondente */}
             {title === "client" ? (
               <View>
-                {/* Componente deveria ficar aqui (clientForm) */}
                 <ClientForm
-                  title="Formulario de Usuário"
+                  title="Formulário de Usuário"
                   onSubmit={handleSubmitItem}
                 />
               </View>
             ) : (
               <View>
-                {/* Componente deveria ficar aqui (GadgetForm) */}
                 <GadgetForm
-                  title="Formulario de Aparelho"
+                  title="Formulário de Aparelho"
                   onSubmit={handleSubmitItem}
                 />
               </View>
@@ -165,28 +190,34 @@ const Register = ({title}) => {
           </View>
         )}
 
+        {!showForm && !loading && resultSearch.length === 0 && !noResult && (
+          <Alert>
+            Nenhum {title === "client" ? "Cliente" : "Aparelho"} foi registrado.
+          </Alert>
+        )}
+
         {noResult && (
           <>
             <Alert>
-              Nenhum {title == "client" ? "Usuário" : "Aparelho"} chamado "
+              Nenhum {title === "client" ? "Usuário" : "Aparelho"} chamado "
               {search ? search : " "}" foi encontrado.
             </Alert>
           </>
         )}
-        {!showForm && (
-          <>
-            <FlatList
-              data={[resultSearch]}
-              numColumns={1}
-              renderItem={renderItem}
-              showsVerticalScrollIndicator={true}
-              contentContainerStyle={{
-                padding: 35,
-                paddingBottom: 100,
-                justifyContent: "center",
-              }}
-            />
-          </>
+
+        {!showForm && resultSearch.length > 0 && (
+          <FlatList
+            data={resultSearch}
+            numColumns={1}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.id.toString()}
+            showsVerticalScrollIndicator={true}
+            contentContainerStyle={{
+              padding: 35,
+              paddingBottom: 100,
+              justifyContent: "center",
+            }}
+          />
         )}
         {loading && (
           <ActivityIndicator
@@ -202,22 +233,31 @@ const Register = ({title}) => {
 };
 
 export default Register;
+
 const styles = StyleSheet.create({
   container: {
     backgroundColor: "#6400FF",
     padding: 20,
     flex: 1,
+    position: "relative",
   },
   searchBar: {
-    height: 40,
+    height: 60,
     borderColor: "gray",
+    width: "85%",
+    padding: 3,
     borderWidth: 1,
     marginBottom: 10,
-    textAlign: "center", // Centraliza o texto
+    textAlign: "center",
+    justifyContent: "center",
   },
   fab: {
+    position: "absolute",
     marginHorizontal: 10,
+    marginVertical: 6,
     backgroundColor: "#FFF",
+    right: 0,
+    bottom: 0,
   },
   Forms: {
     marginTop: 30,
@@ -225,6 +265,7 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "center",
     marginBottom: 10,
   },
